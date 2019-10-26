@@ -1,9 +1,10 @@
 import React from 'react';
-import {Root, Button} from './Request.styled';
-import {useState} from 'react';
+import {Root, Button, ListOfTasks, TaskContainer, TaskText, DeleteTask} from './Request.styled';
+import {useState, useEffect} from 'react';
+import {fetchAllTasks, deleteTask, editTask} from './Request.api';
 
 /**
- * Страница с запросами функцией
+ * Страница с запросами функцией. Обращается к бэку, который находится в другом проекте
  * 
  * Задание было такое:
  * 
@@ -12,7 +13,17 @@ import {useState} from 'react';
  */
 export function Request() {
     const [xhrResult, setXhrResult] = useState('Пока не было запроса');
-    const [fecthResult, setFetchResult] = useState('Пока не было запроса');
+    const [tasks, setTasks] = useState([
+        { id: -3, name: 'Задание 1', text: 'Если вы это видите, значит запрос на сервер не прошёл'},
+        { id: -2, name: 'Задание 2', text: 'Скорее всего, запрос не прошёл из-за CORS'},
+        { id: -1, name: 'Задание 3', text: 'Убедитесь, что сервер работает по адресу localhost:8080'},
+    ]);
+
+    useEffect(() => {
+        // получение всех задач
+        fetchAllTasks().then(data => setTasks(data));
+    }, []);
+
     /**
      * xhr запрос
      */
@@ -30,30 +41,43 @@ export function Request() {
         xhr.onerror = () => {
             setXhrResult('Ошибка запроса');
         };
-        xhr.open('GET', 'http://localhost:8080/api');
+        xhr.open('GET', 'http://localhost:8080/all');
         xhr.send();
     };
-    /**
-     * Fetch запрос
-     */
-    const makeFetchRequest = () => {
-        fetch('http://localhost:8080/api')
-            .catch(error => {
-                setFetchResult('Ошибка запроса');
-            })
-            .then(resp => resp.json())
-            .then(resp => {
-                setFetchResult(`Запрос успешен. Получены данные ${JSON.stringify(resp)}`);
+
+    const onDeleteTask = id => {
+        return () => {
+            deleteTask(id).then(() => {
+                console.log('Удаление');
+                // повторное получение всех задач
+                fetchAllTasks().then(data => setTasks(data));
             });
+        };
     }
+    const onTextChange = task => {
+        return event => {
+            task.text = event.target.value;
+            // отправляем изменения на сервер
+            editTask(task);
+        }
+    };
 
     return (
         <Root>
-            Эта страница посылает запрос на сервер по адресу localhost:8080
+            Эта страница посылает запросы на сервер по адресу localhost:8080
             <Button onClick={makeXHRRequest}>xhr запрос</Button>
             {xhrResult}
-            <Button onClick={makeFetchRequest}>fetch запрос</Button>
-            {fecthResult}
+            <br/>
+            Далее идёт список задач для из задания на backend
+            <ListOfTasks>
+                {tasks.map(task => (
+                    <TaskContainer key={task.id}>
+                        {task.name}
+                        <TaskText defaultValue={task.text} onChange={onTextChange} />
+                        <DeleteTask onClick={onDeleteTask(task.id)}>Удалить</DeleteTask>
+                    </TaskContainer>
+                ))}
+            </ListOfTasks>
         </Root>
     );
 }
